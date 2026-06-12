@@ -1,0 +1,24 @@
+{
+  "name": {
+    "en": "YouTube",
+    "ru": "YouTube",
+    "uk": "YouTube"
+  },
+  "description": {
+    "en": "Integration with YouTube Live: OAuth login, live stream detection, chat, Super Chats, and channel memberships.",
+    "ru": "Интеграция с YouTube Live: OAuth, определение эфира, чат, Super Chat и членства канала.",
+    "uk": "Інтеграція з YouTube Live: OAuth, визначення ефіру, чат, Super Chat та членства каналу."
+  },
+  "type": "platform.streaming",
+  "version": "1.0.0",
+  "author": "RocketMan System",
+  "icon": "logo.png",
+  "permissions": [
+    "NETWORK_REQUEST",
+    "WEB_END_POINTS",
+    "DASHBOARD_EVENTS",
+    "DASHBOARD_CHAT",
+    "STATUS",
+    "NOTIFY"
+  ]
+}
