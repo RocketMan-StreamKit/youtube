@@ -3,9 +3,9 @@ export const PLATFORM = 'youtube';
 export const CLIENT_ID =
   '758178996361-u9ico6r67sbaatemsduua6k784tdn78h.apps.googleusercontent.com';
 
-export const DEFAULT_API_SERVER = 'https://rocketman-streams.com:2083';
-export const AUTH_SERVER_RU_URL = 'https://ru.rocketman-streams.com:2083';
-export const AUTH_SERVER_LOCAL_URL = 'http://localhost:2082';
+export const DEFAULT_API_SERVER = 'https://rocketman-streams.com:443';
+export const AUTH_SERVER_RU_URL = 'https://ru.rocketman-streams.com:443';
+export const AUTH_SERVER_LOCAL_URL = 'https://local.rocketman-streams.com:443';
 
 export const buildAuthServerSelectOptions = (includeLocalhost: boolean) => {
   const urlLabel = (url: string) => ({
