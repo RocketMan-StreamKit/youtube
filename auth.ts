@@ -30,7 +30,52 @@ const readQueryValue = (value: unknown) => {
   return '';
 };
 
-const formatAuthMessage = (message: unknown, fallback: string) => {
+type LocalizedText = {
+  en: string;
+  ru: string;
+  uk: string;
+};
+
+/**
+ * Picks user-facing copy for the current app UI locale, falling back to English.
+ * @param text Per-locale strings (`en`, `ru`, `uk`).
+ */
+const localize = (text: LocalizedText) => text[LANG.current] || text.en;
+
+const AUTH_MESSAGES = {
+  authSuccess: {
+    en: 'Authorization successful. You can close this window.',
+    ru: 'Авторизация успешна. Можно закрыть это окно.',
+    uk: 'Авторизація успішна. Можна закрити це вікно.',
+  },
+  authCallbackFailed: {
+    en: 'Authorization callback failed',
+    ru: 'Ошибка обработки авторизации',
+    uk: 'Помилка обробки авторизації',
+  },
+  youtubeAuthFailed: {
+    en: 'YouTube authorization failed',
+    ru: 'Ошибка авторизации YouTube',
+    uk: 'Помилка авторизації YouTube',
+  },
+  missingAuthCode: {
+    en: 'Missing authorization code',
+    ru: 'Отсутствует код авторизации',
+    uk: 'Відсутній код авторизації',
+  },
+  tokenExchangeFailed: {
+    en: 'Token exchange failed',
+    ru: 'Не удалось обменять код на токен',
+    uk: 'Не вдалося обміняти код на токен',
+  },
+  saveAuthDataFailed: {
+    en: 'Failed to save authorization data',
+    ru: 'Не удалось сохранить данные авторизации',
+    uk: 'Не вдалося зберегти дані авторизації',
+  },
+} as const satisfies Record<string, LocalizedText>;
+
+const formatAuthMessage = (message: unknown, fallback: LocalizedText) => {
   if (typeof message === 'string' && message.trim()) {
     return message.trim();
   }
@@ -41,10 +86,10 @@ const formatAuthMessage = (message: unknown, fallback: string) => {
     try {
       return JSON.stringify(message);
     } catch {
-      return fallback;
+      return localize(fallback);
     }
   }
-  return fallback;
+  return localize(fallback);
 };
 
 const extractCodeFromRequest = (
@@ -96,7 +141,7 @@ events.On('youtubeAuthCallback', async ({ query, url }) => {
     if (error) {
       return {
         redirect: ui.auth.generateFail(
-          `YouTube authorization failed: ${error}`
+          `${localize(AUTH_MESSAGES.youtubeAuthFailed)}: ${error}`
         ),
       };
     }
@@ -106,7 +151,7 @@ events.On('youtubeAuthCallback', async ({ query, url }) => {
 
     if (!code) {
       return {
-        redirect: ui.auth.generateFail('Missing authorization code'),
+        redirect: ui.auth.generateFail(localize(AUTH_MESSAGES.missingAuthCode)),
       };
     }
 
@@ -117,7 +162,7 @@ events.On('youtubeAuthCallback', async ({ query, url }) => {
     if (!exchanged.success || !exchanged.accessToken) {
       const message = formatAuthMessage(
         exchanged.message,
-        'Token exchange failed'
+        AUTH_MESSAGES.tokenExchangeFailed
       );
       return {
         redirect: ui.auth.generateFail(message),
@@ -148,7 +193,7 @@ events.On('youtubeAuthCallback', async ({ query, url }) => {
     ) {
       const message = formatAuthMessage(
         'message' in saved ? saved.message : null,
-        'Failed to save authorization data'
+        AUTH_MESSAGES.saveAuthDataFailed
       );
       return {
         redirect: ui.auth.generateFail(message),
@@ -158,12 +203,10 @@ events.On('youtubeAuthCallback', async ({ query, url }) => {
     RegenerateConfig();
 
     return {
-      redirect: ui.auth.generateSuccess(
-        'Authorization successful. You can close this window.'
-      ),
+      redirect: ui.auth.generateSuccess(localize(AUTH_MESSAGES.authSuccess)),
     };
   } catch (error) {
-    const message = formatAuthMessage(error, 'Authorization callback failed');
+    const message = formatAuthMessage(error, AUTH_MESSAGES.authCallbackFailed);
     console.error('[YouTube] OAuth callback failed:', error);
     return {
       redirect: ui.auth.generateFail(message),
