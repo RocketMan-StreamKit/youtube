@@ -2,6 +2,7 @@ import {
   CLIENT_ID,
   OAUTH_AUTHORIZE_URL,
   REDIRECT_URI,
+  resolveApiServerUrl,
   SCOPES,
 } from './constants';
 import { YouTubeApi } from './api';
@@ -156,7 +157,7 @@ events.On('youtubeAuthCallback', async ({ query, url }) => {
     }
 
     const params = await api.config.getParams<{ api_server?: string }>();
-    YouTubeApi.setApiServer(params.api_server);
+    YouTubeApi.setApiServer(resolveApiServerUrl(params.api_server));
 
     const exchanged = await YouTubeApi.exchangeAuthorizationCode(code);
     if (!exchanged.success || !exchanged.accessToken) {

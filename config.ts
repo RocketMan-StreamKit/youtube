@@ -2,6 +2,7 @@ import { YouTubeApi } from './api';
 import {
   buildAuthServerSelectOptions,
   DEFAULT_API_SERVER,
+  resolveApiServerUrl,
   SCOPES,
 } from './constants';
 import { mergeYoutubeParams } from './params';
@@ -33,8 +34,10 @@ const publishConfig = (params: AddonParams) => {
   const channel_title =
     typeof params.channel_title === 'string' ? params.channel_title : '';
 
-  const fields: Parameters<typeof GenerateConfig>[0] = [
-    {
+  const fields: Parameters<typeof GenerateConfig>[0] = [];
+
+  if (isDeveloperMode) {
+    fields.push({
       key: 'api_server',
       type: 'select',
       default: DEFAULT_API_SERVER,
@@ -51,7 +54,10 @@ const publishConfig = (params: AddonParams) => {
           uk: 'URL сервера авторизації (домен + порт)',
         },
       },
-    },
+    });
+  }
+
+  fields.push(
     {
       key: 'access_token',
       type: 'text',
@@ -71,8 +77,8 @@ const publishConfig = (params: AddonParams) => {
       key: 'channel_title',
       type: 'text',
       default: '',
-    },
-  ];
+    }
+  );
 
   if (access_token) {
     fields.push({
@@ -119,7 +125,7 @@ export const RegenerateConfig = () => {
   api.config.getParams<AddonParams>().then(params => {
     const access_token = params.access_token || '';
     const refresh_token = params.refresh_token || '';
-    const api_server = params.api_server || DEFAULT_API_SERVER;
+    const api_server = resolveApiServerUrl(params.api_server);
     const token_expires_at =
       typeof params.token_expires_at === 'number' ? params.token_expires_at : 0;
 
