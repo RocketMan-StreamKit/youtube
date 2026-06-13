@@ -79,6 +79,45 @@ const normalizeApiServer = (value?: string | null) => {
   return trimmed.replace(/\/+$/, '');
 };
 
+const formatErrorMessage = (value: unknown): string | undefined => {
+  if (typeof value === 'string' && value.trim()) {
+    return value.trim();
+  }
+
+  if (Array.isArray(value)) {
+    const parts = value
+      .map(item => {
+        if (typeof item === 'string' && item.trim()) {
+          return item.trim();
+        }
+        if (item && typeof item === 'object') {
+          const record = item as { msg?: unknown; message?: unknown };
+          if (typeof record.msg === 'string' && record.msg.trim()) {
+            return record.msg.trim();
+          }
+          if (typeof record.message === 'string' && record.message.trim()) {
+            return record.message.trim();
+          }
+        }
+        return '';
+      })
+      .filter(Boolean);
+    return parts.length ? parts.join('; ') : undefined;
+  }
+
+  if (value && typeof value === 'object') {
+    const record = value as { msg?: unknown; message?: unknown };
+    if (typeof record.msg === 'string' && record.msg.trim()) {
+      return record.msg.trim();
+    }
+    if (typeof record.message === 'string' && record.message.trim()) {
+      return record.message.trim();
+    }
+  }
+
+  return undefined;
+};
+
 export const YouTubeApi = new (class {
   accessToken: string | null = null;
   refreshToken: string | null = null;
@@ -102,7 +141,26 @@ export const YouTubeApi = new (class {
     path: string,
     body: Record<string, unknown>
   ): Promise<string> {
-    return network.request.post(`${this.apiServer}${path}`, body);
+    const url = `${this.apiServer}${path}`;
+    const payload: Record<string, string> = {
+      redirect_uri:
+        typeof body.redirect_uri === 'string'
+          ? body.redirect_uri
+          : REDIRECT_URI,
+    };
+
+    if (typeof body.code === 'string') {
+      payload.code = body.code;
+    }
+    if (typeof body.refresh_token === 'string') {
+      payload.refresh_token = body.refresh_token;
+    }
+
+    console.log(
+      `[YouTube] Token endpoint request: url=${url}, codeLength=${payload.code?.length ?? 0}, bodyLength=${JSON.stringify(payload).length}`
+    );
+
+    return network.request.post(url, payload);
   }
 
   private authHeaders() {
@@ -151,9 +209,8 @@ export const YouTubeApi = new (class {
       status?: string;
       error?: string | { code?: number; message?: string; status?: string };
       error_description?: string;
-      detail?: string;
-      errors?: { reason?: string }[];
-      details?: { reason?: string }[];
+      detail?: string | unknown[] | Record<string, unknown>;
+      details?: { reason?: string }[] | unknown[];
     };
     try {
       body = JSON.parse(response) as T & {
@@ -162,9 +219,9 @@ export const YouTubeApi = new (class {
         status?: string;
         error?: string | { code?: number; message?: string; status?: string };
         error_description?: string;
-        detail?: string;
+        detail?: string | unknown[] | Record<string, unknown>;
         errors?: { reason?: string }[];
-        details?: { reason?: string }[];
+        details?: { reason?: string }[] | unknown[];
       };
     } catch {
       return { ok: false as const, message: fallback };
@@ -176,7 +233,8 @@ export const YouTubeApi = new (class {
       (typeof body.error === 'string' ? body.error : undefined) ||
       nestedError?.message ||
       body.error_description ||
-      body.detail ||
+      formatErrorMessage(body.detail) ||
+      formatErrorMessage(body.details) ||
       (typeof body.code === 'number' && body.code >= 400
         ? body.message
         : undefined);
@@ -185,7 +243,7 @@ export const YouTubeApi = new (class {
       return {
         ok: false as const,
         message: errorMessage,
-        quotaExceeded: this.isQuotaExceeded(body),
+        quotaExceeded: this.isQuotaExceeded(body as any),
       };
     }
     return { ok: true as const, body };
@@ -198,9 +256,15 @@ export const YouTubeApi = new (class {
     expiresIn?: number;
     message?: string;
   }> {
+    const tokenPath = '/youtube/oauth/token';
+    const normalizedCode = typeof code === 'string' ? code.trim() : '';
+    if (!normalizedCode) {
+      return { success: false, message: 'Authorization code is empty' };
+    }
+
     try {
-      const response = await this.postTokenEndpoint('/youtube/oauth/token', {
-        code,
+      const response = await this.postTokenEndpoint(tokenPath, {
+        code: normalizedCode,
         redirect_uri: REDIRECT_URI,
       });
       const parsed = this.parseBody<TokenResponse>(
@@ -214,6 +278,9 @@ export const YouTubeApi = new (class {
             : parsed.body.error_description ||
               parsed.body.error ||
               'YouTube did not return access token';
+        console.error(
+          `[YouTube] Token exchange response error: url=${this.apiServer}${tokenPath}, redirect_uri=${REDIRECT_URI}, detail=${detail}, response=${response?.slice(0, 500)}`
+        );
         return { success: false, message: detail };
       }
       return {
@@ -227,7 +294,10 @@ export const YouTubeApi = new (class {
         error instanceof Error
           ? error.message
           : 'YouTube token exchange failed';
-      console.error('YouTube token exchange failed:', error);
+      console.error(
+        `[YouTube] Token exchange request failed: url=${this.apiServer}${tokenPath}, apiServer=${this.apiServer}, redirect_uri=${REDIRECT_URI}, error=${message}`,
+        error
+      );
       return { success: false, message };
     }
   }
