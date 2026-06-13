@@ -83,6 +83,7 @@ events.On('youtubeLogout', async () => {
     access_token: '',
     refresh_token: '',
     token_expires_at: 0,
+    channel_title: '',
   });
   RegenerateConfig();
 });
@@ -128,10 +129,15 @@ events.On('youtubeAuthCallback', async ({ query, url }) => {
         ? Date.now() + exchanged.expiresIn * 1000
         : Date.now() + 3600 * 1000;
 
+    YouTubeApi.accessToken = exchanged.accessToken;
+    YouTubeApi.refreshToken = exchanged.refreshToken || null;
+    const channel = await YouTubeApi.getMyChannel(true);
+
     const saved = await mergeYoutubeParams({
       access_token: exchanged.accessToken,
       refresh_token: exchanged.refreshToken || '',
       token_expires_at: expiresAt,
+      channel_title: channel?.title || '',
     });
 
     if (
